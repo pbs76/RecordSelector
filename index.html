@@ -36,14 +36,24 @@ table {
   border-collapse:collapse;
   font-size:14px;
 }
-thead th {
-  position:sticky;
-  top:0;
-  background:#000;
-  color:#fff;
-  padding:10px;
-  border-bottom:2px solid #555;
-  text-align:left;
+thead 
+th {
+  position: relative;
+  user-select: none;
+}
+th .resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 6px;
+  cursor: col-resize;
+  user-select: none;
+  height: 100%;
+  background: transparent;
+}
+th .resizer:hover,
+th.resizing .resizer {
+  background: #555;
 }
 tbody tr {
   background:#0a0a0a;
@@ -301,5 +311,43 @@ if (cached && cached.length){
   $('status').textContent = 'Loaded cached collection. Hit Sync to refresh from Discogs.';
 }
 </script>
+<script>
+// === Column Resizing ===
+document.addEventListener("DOMContentLoaded", () => {
+  const table = document.querySelector("table");
+  if (!table) return;
+
+  const thElems = table.querySelectorAll("thead th");
+  thElems.forEach(th => {
+    const resizer = document.createElement("div");
+    resizer.classList.add("resizer");
+    th.appendChild(resizer);
+
+    let startX, startWidth;
+
+    const onMouseDown = (e) => {
+      startX = e.pageX;
+      startWidth = th.offsetWidth;
+      th.classList.add("resizing");
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    };
+
+    const onMouseMove = (e) => {
+      const dx = e.pageX - startX;
+      const newWidth = Math.max(60, startWidth + dx);
+      th.style.width = newWidth + "px";
+    };
+
+    const onMouseUp = () => {
+      th.classList.remove("resizing");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    resizer.addEventListener("mousedown", onMouseDown);
+  });
+});
+</script>  
 </body>
 </html>

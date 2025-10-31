@@ -131,35 +131,53 @@ async function proxyFetch(path){
 }
 
 async function fetchCollection(username){
-  $('status').textContent = 'Fetching folders…';
-  const folders = await proxyFetch('/users/'+encodeURIComponent(username)+'/collection/folders');
+  $('status').textContent = 'Fetching collection (All folder)…';
+
   const all = [];
-  const seenInstanceIds = new Set();
-  for (const folder of (folders.folders||[])){
-    let page=1, per=100, pages=1;
-    $('status').textContent = 'Folder "'+folder.name+'"…';
-    while (page<=pages){
-      const j = await proxyFetch('/users/'+encodeURIComponent(username)+'/collection/folders/'+folder.id+'/releases?per_page='+per+'&page='+page);
-      pages = j.pagination ? j.pagination.pages : 1;
-      for (const it of (j.releases||[])){
-          const iid = it.instance_id;
-          if (iid && seenInstanceIds.has(iid)) continue;
-          if (iid) seenInstanceIds.add(iid);
-        const bi = it.basic_information || {};
-        const artist = (bi.artists && bi.artists[0] && bi.artists[0].name) || "";
-        const title = bi.title || "";
-        const labels = (bi.labels||[]).map(x=>x.name).join(', ');
-        const formats = (bi.formats||[]).map(x=>x.name).join(', ');
-        const year = bi.year || "";
-        const decade = decadeOf(parseInt(year,10));
-        const genres = (bi.genres||[]).join(', ');
-        const styles = (bi.styles||[]).join(', ');
-        all.push({artist,title,labels,formats,year,decade,genres,styles});
-      }
-      page++;
-      await new Promise(r=>setTimeout(r, 700)); // polite pacing
+  const seenKeys = new Set(); // dedupe key per physical copy
+
+  // Pull only folder 0 ("All")
+  let page = 1, per = 100, pages = 1;
+  while (page <= pages) {
+    const j = await proxyFetch('/users/' + encodeURIComponent(username) +
+                               '/collection/folders/0/releases?per_page=' + per + '&page=' + page);
+    pages = j.pagination ? j.pagination.pages : 1;
+
+    for (const it of (j.releases || [])) {
+      const bi = it.basic_information || {};
+
+      // Build a stable dedupe key:
+      // Prefer unique copy id (instance_id). Fallback to release_id + date_added as a best-effort.
+      const instanceId = it.instance_id;
+      const releaseId  = bi.id;
+      const dateAdded  = it.date_added || '';
+      const key = instanceId ? `I:${instanceId}` : `R:${releaseId}|${dateAdded}`;
+
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+
+      const artist  = (bi.artists && bi.artists[0] && bi.artists[0].name) || "";
+      const title   = bi.title || "";
+      const labels  = (bi.labels || []).map(x => x.name).join(', ');
+      const formats = (bi.formats || []).map(x => x.name).join(', ');
+      const year    = bi.year || "";
+      const decade  = decadeOf(parseInt(year, 10));
+      const genres  = (bi.genres || []).join(', ');
+      const styles  = (bi.styles || []).join(', ');
+
+      all.push({
+        instance_id: instanceId || '',
+        release_id: releaseId || '',
+        artist, title, labels, formats, year, decade, genres, styles,
+        folder: 'All'
+      });
     }
+
+    page++;
+    // polite pacing to be nice to Discogs
+    await new Promise(r => setTimeout(r, 700));
   }
+
   return all;
 }
 

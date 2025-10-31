@@ -252,7 +252,6 @@ function populateFilters(data){
   const decs = uniq(data.map(x=>x.decade));
   const gens = uniq(data.flatMap(x=> (x.genres||'').split(',').map(s=>s.trim()).filter(Boolean)));
   const stys = uniq(data.flatMap(x=> (x.styles||'').split(',').map(s=>s.trim()).filter(Boolean)));
-{
  function fill(sel, values){
   sel.innerHTML = "";
   // Capitalize first letter of the select's id, use as its label

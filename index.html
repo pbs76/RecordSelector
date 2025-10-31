@@ -134,6 +134,7 @@ async function fetchCollection(username){
   $('status').textContent = 'Fetching folders…';
   const folders = await proxyFetch('/users/'+encodeURIComponent(username)+'/collection/folders');
   const all = [];
+  const seenInstanceIds = new Set();
   for (const folder of (folders.folders||[])){
     let page=1, per=100, pages=1;
     $('status').textContent = 'Folder "'+folder.name+'"…';
@@ -141,6 +142,9 @@ async function fetchCollection(username){
       const j = await proxyFetch('/users/'+encodeURIComponent(username)+'/collection/folders/'+folder.id+'/releases?per_page='+per+'&page='+page);
       pages = j.pagination ? j.pagination.pages : 1;
       for (const it of (j.releases||[])){
+          const iid = it.instance_id;
+          if (iid && seenInstanceIds.has(iid)) continue;
+          if (iid) seenInstanceIds.add(iid);
         const bi = it.basic_information || {};
         const artist = (bi.artists && bi.artists[0] && bi.artists[0].name) || "";
         const title = bi.title || "";

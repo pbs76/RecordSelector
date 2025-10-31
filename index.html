@@ -245,30 +245,37 @@ async function fetchCollection(username){
 
   return all;
 }
-
 function populateFilters(data){
   const labels = uniq(data.map(x=>x.labels));
   const fmts = uniq(data.map(x=>x.formats));
   const decs = uniq(data.map(x=>x.decade));
   const gens = uniq(data.flatMap(x=> (x.genres||'').split(',').map(s=>s.trim()).filter(Boolean)));
-  const stys = uniq(data.flatMap(x=> (x.styles||'').split(',').map(s=>s.trim()).filter(Boolean)));
- function fill(sel, values){
+  const stys = uniq(data.flatMap(x=> (x.styles||'').split(',').map(s=>s.trim()).filter(Boolean)));}
+  // write the options into each <select>
+  fill(document.getElementById('label'),  labels);
+  fill(document.getElementById('format'), fmts);
+  fill(document.getElementById('decade'), decs);
+  fill(document.getElementById('genre'),  gens);
+  fill(document.getElementById('style'),  stys);
+function fill(sel, values) {
   sel.innerHTML = "";
-  // Capitalize first letter of the select's id, use as its label
-  const fieldName = sel.id.charAt(0).toUpperCase() + sel.id.slice(1);
-  const opt = document.createElement('option');
+  // Capitalize first letter of the select's id to use as label
+  const fieldName =
+    sel.id && sel.id.length
+      ? sel.id.charAt(0).toUpperCase() + sel.id.slice(1)
+      : "Select";
+  const opt = document.createElement("option");
   opt.value = "";
-  opt.textContent = fieldName;   // simple, clean label
+  opt.textContent = fieldName; // simple, clean label
   sel.appendChild(opt);
 
   for (const v of values) {
-    const o = document.createElement('option');
+    const o = document.createElement("option");
     o.value = v;
     o.textContent = v;
     sel.appendChild(o);
   }
 }
-
 let DATA=[], SHOWN=[];
 function applyFilters(){
   const q = norm($('q').value);

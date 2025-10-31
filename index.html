@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="theme-color" content="#22c55e"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record Selector — Vinyl Collection (Local)</title>
+<style>
+  :root{--bg:#0f172a;--card:#111827;--muted:#1f2937;--text:#e5e7eb;--accent:#22c55e;--border:#233044}
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif}
+  body{margin:0;background:linear-gradient(180deg,#0b1220,#0f172a 30%,#0b122a);color:var(--text);padding:24px}
+  .wrap{max-width:1200px;margin:0 auto}
+  h1{font-size:28px;margin:0 0 8px}
+  p.sub{color:#cbd5e1;margin:0 0 16px}
+  .card{background:var(--card);border:1px solid var(--border);box-shadow:0 8px 28px rgba(0,0,0,.25);border-radius:16px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1}
+  label{display:block;margin:10px 0 6px;color:#cbd5e1}
+  input[type="text"], input[type="file"], select{width:100%;padding:10px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:var(--text)}
+  .controls{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .controls .wide{grid-column:span 2}
+  .controls .xwide{grid-column:span 3}
+  button{border:none;padding:10px 12px;border-radius:12px;background:var(--accent);color:#072;font-weight:700;cursor:pointer}
+  button.ghost{background:#0b1220;border:1px solid var(--border);color:#e5e7eb}
+  .muted{color:#94a3b8}
+  table{width:100%;border-collapse:separate;border-spacing:0 6px}
+  thead th{position:sticky;top:0;background:#0d1425;padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:12px;color:#cbd5e1}
+  tbody tr{background:#0b1220;border:1px solid var(--border)}
+  tbody td{padding:10px;border-top:1px solid var(--border)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid #334155;margin-right:6px;font-size:11px}
+  .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#132032;border:1px solid #2a3a54;font-size:11px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap}
+  .topbar .group{display:flex;gap:8px;flex-wrap:wrap}
+  .sticky-footer{position:sticky;bottom:0;background:#0d1425;border:1px solid var(--border);border-radius:14px;padding:10px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .num{font-variant-numeric:tabular-nums}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Record Selector <span class="pill">Local · Offline UI</span></h1>
+  <p class="sub">Load your Discogs CSV and filter by Artist, Title, Label, Format, Year/Decade, Genre/Style (if present). Build a "crate" and export the selection.</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="xwide">
+        <label for="csv">Discogs CSV</label>
+        <input id="csv" type="file" accept=".csv"/>
+        <small class="muted">Works with the original export, and will auto-detect <span class="badge">Genre</span>, <span class="badge">Style</span>, <span class="badge">ReleasedYear</span>, <span class="badge">Decade</span> if you used the enrichers.</small>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="load">Load</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="filtersCard" class="card hidden">
+    <div class="topbar">
+      <div class="group">
+        <div class="pill"><span id="countTotal" class="num">0</span> total</div>
+        <div class="pill"><span id="countShown" class="num">0</span> shown</div>
+        <div class="pill"><span id="countCrate" class="num">0</span> in crate</div>
+      </div>
+      <div class="group">
+        <button class="ghost" id="clearFilters">Clear filters</button>
+        <button class="ghost" id="clearCrate">Empty crate</button>
+        <button id="exportCrate">Export selected CSV</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="wide">
+        <label>Search (Artist / Title)</label>
+        <input id="q" type="text" placeholder="type to search…"/>
+      </div>
+      <div>
+        <label>Label</label>
+        <select id="label"></select>
+      </div>
+      <div>
+        <label>Format</label>
+        <select id="format"></select>
+      </div>
+      <div>
+        <label>Decade</label>
+        <select id="decade"></select>
+      </div>
+      <div>
+        <label>Genre</label>
+        <select id="genre"></select>
+      </div>
+      <div>
+        <label>Style</label>
+        <select id="style"></select>
+      </div>
+      <div>
+        <label>Media Cond.</label>
+        <select id="media"></select>
+      </div>
+      <div>
+        <label>Sleeve Cond.</label>
+        <select id="sleeve"></select>
+      </div>
+      <div>
+        <label>Year ≥</label>
+        <input id="yearMin" type="text" placeholder="e.g. 1970" />
+      </div>
+      <div>
+        <label>Year ≤</label>
+        <input id="yearMax" type="text" placeholder="e.g. 1989" />
+      </div>
+      <div class="wide">
+        <label>Sort</label>
+        <select id="sort">
+          <option value="Artist,asc">Artist (A→Z)</option>
+          <option value="Artist,desc">Artist (Z→A)</option>
+          <option value="Title,asc">Title (A→Z)</option>
+          <option value="Title,desc">Title (Z→A)</option>
+          <option value="ReleasedYear,asc">Year (old→new)</option>
+          <option value="ReleasedYear,desc">Year (new→old)</option>
+          <option value="Label,asc">Label (A→Z)</option>
+          <option value="Label,desc">Label (Z→A)</option>
+        </select>
+      </div>
+      <div>
+        <label>Random pick</label>
+        <select id="randomN">
+          <option value="1">1</option>
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="randomPick" class="ghost">Add random to crate</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tableCard" class="card hidden">
+    <div class="topbar">
+      <div class="group"><span class="muted">Showing first <span id="pageCount" class="num">0</span> of <span id="countShown2" class="num">0</span></span></div>
+      <div class="group">
+        <button class="ghost" id="prevPage">Prev</button>
+        <span class="muted">Page <span id="pageNum" class="num">1</span></span>
+        <button class="ghost" id="nextPage">Next</button>
+        <select id="pageSize">
+          <option>25</option>
+          <option selected>50</option>
+          <option>100</option>
+        </select>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Artist</th>
+          <th>Title</th>
+          <th>Label</th>
+          <th>Format</th>
+          <th>Year</th>
+          <th>Decade</th>
+          <th>Genre</th>
+          <th>Style</th>
+          <th>Media</th>
+          <th>Sleeve</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="sticky-footer">
+      <div><span class="muted">Selected crate:</span> <span id="crateNames"></span></div>
+      <div class="group">
+        <button class="ghost" id="saveCrate">Save crate (browser)</button>
+        <button class="ghost" id="loadCrate">Load crate</button>
+        <button id="exportCrate2">Export CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- CSV parsing / building ---
+function parseCSV(text) {
+  const rows = []; let i=0, cur="", row=[], inQ=false;
+  while (i<text.length){
+    const c = text[i];
+    if (inQ){
+      if (c === '"'){
+        if (text[i+1] === '"'){ cur+='"'; i+=2; continue; }
+        inQ=false; i++; continue;
+      } else { cur+=c; i++; continue; }
+    } else {
+      if (c === '"'){ inQ=true; i++; continue; }
+      if (c === ','){ row.push(cur); cur=""; i++; continue; }
+      if (c === '\n'){ row.push(cur); rows.push(row); row=[]; cur=""; i++; continue; }
+      if (c === '\r'){ i++; continue; }
+      cur += c; i++; continue;
+    }
+  }
+  row.push(cur); rows.push(row);
+  return rows;
+}
+function toCSV(rows){
+  const esc = v => {
+    if (v==null) return "";
+    let s = String(v);
+    if (s.includes('"')) s=s.replace(/"/g,'""');
+    if (/[",\n]/.test(s)) s='"'+s+'"';
+    return s;
+  };
+  return rows.map(r=>r.map(esc).join(',')).join('\n');
+}
+
+// --- Helpers ---
+const $ = id => document.getElementById(id);
+const norm = s => (s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const uniq = arr => Array.from(new Set(arr.filter(x=>x!=null && x!=="").map(x=>String(x)))).sort((a,b)=>a.localeCompare(b));
+function inferYear(v){
+  if (v==null) return "";
+  const s = String(v).trim();
+  if (s==="" || s==="0") return "";
+  const y = parseInt(s.slice(0,4),10);
+  return (y && !isNaN(y) && y>1000) ? y : "";
+}
+function decadeOf(y){
+  if (!y) return "";
+  return Math.floor(y/10)*10 + "s";
+}
+function buildOptions(select, values, addBlank=true){
+  select.innerHTML = "";
+  if (addBlank){
+    const opt=document.createElement('option'); opt.value=""; opt.textContent="(any)"; select.appendChild(opt);
+  }
+  for (const v of values){
+    const opt=document.createElement('option'); opt.value=v; opt.textContent=v; select.appendChild(opt);
+  }
+}
+
+// --- State ---
+let header=[], rows=[], idx={}, data=[], filtered=[], page=1, pageSize=50, crate=new Set();
+
+// --- Load CSV ---
+$('load').onclick = async ()=>{
+  const file = $('csv').files[0];
+  if (!file){ alert('Choose your CSV.'); return; }
+  const text = await file.text();
+  const parsed = parseCSV(text);
+  if (!parsed.length){ alert('CSV empty?'); return; }
+  header = parsed[0]; rows = parsed.slice(1);
+  // column indexes
+  const need = ['Artist','Title','Label','Format'];
+  for (const n of need){ if (header.indexOf(n)===-1){ alert("Missing column: "+n); return; } }
+  const names = [
+    'Catalog#','Artist','Title','Label','Format','Rating','Released','release_id','CollectionFolder','Date Added',
+    'Collection Media Condition','Collection Sleeve Condition','Collection Notes','Genre','Style','ReleasedYear','Decade'
+  ];
+  idx = {}; for (const n of names){ idx[n] = header.indexOf(n); }
+
+  // Build data objects
+  data = rows.map((r,i)=>{
+    const get = k => idx[k]===-1 ? "" : (r[idx[k]]||"");
+    const year = idx['ReleasedYear']>-1 ? (r[idx['ReleasedYear']]||"") : inferYear(get('Released'));
+    const decade = idx['Decade']>-1 ? (r[idx['Decade']]||"") : decadeOf(parseInt(year||"",10));
+    return {
+      __i:i,
+      Catalog:get('Catalog#'),
+      Artist:get('Artist'),
+      Title:get('Title'),
+      Label:get('Label'),
+      Format:get('Format'),
+      Rating:get('Rating'),
+      Released:get('Released'),
+      Year: year || "",
+      Decade: decade || "",
+      Genre: get('Genre'),
+      Style: get('Style'),
+      Media:get('Collection Media Condition'),
+      Sleeve:get('Collection Sleeve Condition'),
+      Notes:get('Collection Notes'),
+      release_id:get('release_id')
+    };
+  });
+
+  // Build filter options
+  buildOptions($('label'), uniq(data.map(x=>x.Label)));
+  buildOptions($('format'), uniq(data.map(x=>x.Format)));
+  buildOptions($('decade'), uniq(data.map(x=>x.Decade)));
+  buildOptions($('genre'), uniq((data.flatMap(x=> (x.Genre||"").split(',').map(s=>s.trim())))));
+  buildOptions($('style'), uniq((data.flatMap(x=> (x.Style||"").split(',').map(s=>s.trim())))));
+  buildOptions($('media'), uniq(data.map(x=>x.Media)));
+  buildOptions($('sleeve'), uniq(data.map(x=>x.Sleeve)));
+
+  $('filtersCard').classList.remove('hidden');
+  $('tableCard').classList.remove('hidden');
+  $('countTotal').textContent = String(data.length);
+  applyFilters();
+};
+
+// --- Filtering & Sorting ---
+function applyFilters(){
+  const q = norm($('q').value);
+  const label = $('label').value;
+  const fmt = $('format').value;
+  const dec = $('decade').value;
+  const gen = $('genre').value;
+  const sty = $('style').value;
+  const med = $('media').value;
+  const sle = $('sleeve').value;
+  const yMin = parseInt($('yearMin').value||"",10);
+  const yMax = parseInt($('yearMax').value||"",10);
+  const sort = $('sort').value.split(',');
+  const sortKey = sort[0], sortDir = sort[1];
+
+  filtered = data.filter(x=>{
+    if (q){
+      const hay = norm(x.Artist + " " + x.Title);
+      if (!hay.includes(q)) return false;
+    }
+    if (label && x.Label !== label) return false;
+    if (fmt && x.Format !== fmt) return false;
+    if (dec && x.Decade !== dec) return false;
+    if (gen && !(x.Genre||"").split(',').map(s=>s.trim()).includes(gen)) return false;
+    if (sty && !(x.Style||"").split(',').map(s=>s.trim()).includes(sty)) return false;
+    if (med && x.Media !== med) return false;
+    if (sle && x.Sleeve !== sle) return false;
+    const y = parseInt(x.Year||"",10);
+    if (!isNaN(yMin) && y && y < yMin) return false;
+    if (!isNaN(yMax) && y && y > yMax) return false;
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    const av = (a[sortKey]||"").toString();
+    const bv = (b[sortKey]||"").toString();
+    if (sortDir==='asc') return av.localeCompare(bv, undefined, {numeric:true,sensitivity:'base'});
+    return bv.localeCompare(av, undefined, {numeric:true,sensitivity:'base'});
+  });
+
+  page = 1;
+  render();
+}
+
+function render(){
+  const ps = parseInt($('pageSize').value,10) || 50;
+  const start = (page-1)*ps;
+  const items = filtered.slice(start, start+ps);
+  const tbody = $('tbody');
+  tbody.innerHTML = "";
+  for (const x of items){
+    const tr = document.createElement('tr');
+    const checked = crate.has(x.__i) ? "checked" : "";
+    tr.innerHTML = `
+      <td><input type="checkbox" data-i="${x.__i}" ${checked}></td>
+      <td>${x.Artist}</td>
+      <td>${x.Title}</td>
+      <td>${x.Label}</td>
+      <td>${x.Format}</td>
+      <td>${x.Year||""}</td>
+      <td>${x.Decade||""}</td>
+      <td>${x.Genre||""}</td>
+      <td>${x.Style||""}</td>
+      <td>${x.Media||""}</td>
+      <td>${x.Sleeve||""}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  // wire checkboxes
+  tbody.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', (e)=>{
+      const i = parseInt(e.target.getAttribute('data-i'),10);
+      if (e.target.checked) crate.add(i); else crate.delete(i);
+      updateCrateUI();
+    });
+  });
+
+  $('countShown').textContent = String(filtered.length);
+  $('countShown2').textContent = String(filtered.length);
+  $('pageCount').textContent = String(items.length);
+  $('pageNum').textContent = String(page);
+  updateCrateUI();
+}
+
+function updateCrateUI(){
+  $('countCrate').textContent = String(crate.size);
+  const names = Array.from(crate).slice(0,10).map(i=> data[i].Artist + " — " + data[i].Title);
+  $('crateNames').textContent = names.join("; ") + (crate.size>10 ? ` … (+${crate.size-10})` : "");
+}
+
+// --- Events ---
+['q','label','format','decade','genre','style','media','sleeve','yearMin','yearMax','sort'].forEach(id=>{
+  $(id).addEventListener('input', ()=> applyFilters());
+  $(id).addEventListener('change', ()=> applyFilters());
+});
+$('pageSize').addEventListener('change', ()=> render());
+$('prevPage').addEventListener('click', ()=> { if (page>1){ page--; render(); }});
+$('nextPage').addEventListener('click', ()=> { const pages = Math.ceil(filtered.length / (parseInt($('pageSize').value,10)||50)); if (page < pages){ page++; render(); }});
+$('clearFilters').addEventListener('click', ()=>{
+  ['q','label','format','decade','genre','style','media','sleeve','yearMin','yearMax'].forEach(id=> $(id).value="");
+  applyFilters();
+});
+$('clearCrate').addEventListener('click', ()=>{ crate.clear(); updateCrateUI(); render(); });
+
+function buildExport(rows, selectedIdxSet){
+  const outHeader = header.slice();
+  if (!outHeader.includes('Selected')) outHeader.push('Selected');
+  const out = [outHeader];
+  for (let i=0;i<rows.length;i++){
+    const r = rows[i].slice();
+    const sel = selectedIdxSet.has(i) ? "1" : "";
+    if (outHeader.indexOf('Selected')===-1){
+      r.push(sel);
+    } else {
+      const pos = outHeader.indexOf('Selected');
+      while (r.length<outHeader.length) r.push("");
+      r[pos] = sel;
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+function downloadCSV(name, content){
+  const blob = new Blob([content], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+$('exportCrate').addEventListener('click', ()=>{
+  const out = buildExport(rows, crate);
+  downloadCSV('record_selection.csv', toCSV(out));
+});
+$('exportCrate2').addEventListener('click', ()=>{
+  const out = buildExport(rows, crate);
+  downloadCSV('record_selection.csv', toCSV(out));
+});
+
+$('saveCrate').addEventListener('click', ()=>{
+  const arr = Array.from(crate);
+  localStorage.setItem('record_selector_crate', JSON.stringify(arr));
+  alert('Crate saved in your browser.');
+});
+$('loadCrate').addEventListener('click', ()=>{
+  try{
+    const arr = JSON.parse(localStorage.getItem('record_selector_crate')||"[]");
+    crate = new Set(arr);
+    updateCrateUI();
+    render();
+  }catch(e){ alert('No saved crate found.'); }
+});
+
+function randInt(n){ return Math.floor(Math.random()*n); }
+$('randomPick').addEventListener('click', ()=>{
+  const n = parseInt($('randomN').value,10)||1;
+  if (!filtered.length) return;
+  const picks = new Set();
+  while (picks.size < Math.min(n, filtered.length)){
+    const j = randInt(filtered.length);
+    picks.add(filtered[j].__i);
+  }
+  for (const i of picks) crate.add(i);
+  updateCrateUI();
+  render();
+});
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+</script>
+
+</body>
+</html>

@@ -246,24 +246,6 @@ async function fetchCollection(username){
   return all;
 
 /* ===== Filters: build options + labels ===== */
-
-function fill(sel, values) {
-  // Clear and insert a simple field-name placeholder (no "Any" prefix)
-  sel.innerHTML = "";
-  const fieldName = sel.id && sel.id.length
-    ? sel.id.charAt(0).toUpperCase() + sel.id.slice(1)
-    : "Select";
-  const opt = document.createElement("option");
-  opt.value = "";
-  opt.textContent = fieldName; // e.g., "Genre", "Style", "Label"
-  sel.appendChild(opt);
-
-  for (const v of values) {
-    const o = document.createElement("option");
-    o.value = v;
-    o.textContent = v;
-    sel.appendChild(o);
-  }
 }
 
 function populateFilters(data){
@@ -281,6 +263,23 @@ function populateFilters(data){
   fill(document.getElementById('genre'),  gens);
   fill(document.getElementById('style'),  stys);
 }
+function fill(sel, values) {
+  // Clear and insert a simple field-name placeholder (no "Any" prefix)
+  sel.innerHTML = "";
+  const fieldName = sel.id && sel.id.length
+    ? sel.id.charAt(0).toUpperCase() + sel.id.slice(1)
+    : "Select";
+  const opt = document.createElement("option");
+  opt.value = "";
+  opt.textContent = fieldName; // e.g., "Genre", "Style", "Label"
+  sel.appendChild(opt);
+
+  for (const v of values) {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = v;
+    sel.appendChild(o);
+  }
 /* ===== end filters ===== */  
   
 let DATA=[], SHOWN=[];

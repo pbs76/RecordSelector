@@ -4,23 +4,9 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Record Selector — Live Discogs</title>
-<meta name="theme-color" content="#22c55e"/>
-<link rel="manifest" href="manifest.webmanifest"/>function fill(sel, values){
-  sel.innerHTML = "";
-  // Capitalize first letter of the select's id, use as its label
-  const fieldName = sel.id.charAt(0).toUpperCase() + sel.id.slice(1);
-  const opt = document.createElement('option');
-  opt.value = "";
-  opt.textContent = fieldName;   // simple, clean label
-  sel.appendChild(opt);
+<meta name="theme-color" content="#000000"/>
+<link rel="manifest" href="manifest.webmanifest"/>
 
-  for (const v of values) {
-    const o = document.createElement('option');
-    o.value = v;
-    o.textContent = v;
-    sel.appendChild(o);
-  }
-}
 <style>
   :root{
     --bg:#000;          /* page background */
@@ -43,50 +29,32 @@
   button{background:var(--accent);color:#000;border:none;font-weight:700;cursor:pointer}
   button.ghost{background:#0b0b0b;border:1px solid var(--border);color:#eaeaea}
   button:focus, input:focus, select:focus{outline:2px solid #fff;outline-offset:2px}
-.table {
-  overflow:auto;
-}
-table {
-  width:100%;
-  border-collapse:collapse;
-  font-size:14px;
-}
-thead 
-th {
-  position: relative;
-  user-select: none;
-}
-th .resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 6px;
-  cursor: col-resize;
-  user-select: none;
-  height: 100%;
-  background: transparent;
-}
-th .resizer:hover,
-th.resizing .resizer {
-  background: #555;
-}
-tbody tr {
-  background:#0a0a0a;
-  border-bottom:1px solid #333;  /* clean, light gray divider */
-}
-tbody tr:nth-child(even) {
-  background:#0f0f0f;           /* subtle zebra striping */
-}
-td {
-  padding:8px 10px;
-  border-right:1px solid #222;  /* vertical grid line */
-}
-td:last-child {
-  border-right:none;
-}
-tbody tr:hover {
-  background:#1a1a1a;           /* hover contrast */
-}
+
+  /* Table + grid lines */
+  .table { overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  thead th {
+    position:sticky; top:0;
+    background:#000; color:#fff;
+    padding:10px; text-align:left;
+    border-bottom:2px solid #555;
+  }
+  tbody tr { background:#0a0a0a; border-bottom:1px solid #333; }
+  tbody tr:nth-child(even) { background:#0f0f0f; }
+  td { padding:8px 10px; border-right:1px solid #222; }
+  td:last-child { border-right:none; }
+  tbody tr:hover { background:#1a1a1a; }
+
+  /* Column resize handles */
+  th { position: relative; user-select: none; }
+  th .resizer {
+    position: absolute; right: 0; top: 0;
+    width: 6px; height: 100%;
+    cursor: col-resize; user-select: none;
+    background: transparent;
+  }
+  th .resizer:hover, th.resizing .resizer { background:#555; }
+
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b0b0b;border:1px solid var(--border);margin-right:6px;font-size:11px;color:#eaeaea}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
   .muted{color:#9a9a9a}
@@ -212,12 +180,10 @@ async function fetchCollection(username){
       const bi = it.basic_information || {};
 
       // Build a stable dedupe key:
-      // Prefer unique copy id (instance_id). Fallback to release_id + date_added as a best-effort.
       const instanceId = it.instance_id;
       const releaseId  = bi.id;
       const dateAdded  = it.date_added || '';
       const key = instanceId ? `I:${instanceId}` : `R:${releaseId}|${dateAdded}`;
-
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
 
@@ -239,32 +205,14 @@ async function fetchCollection(username){
     }
 
     page++;
-    // polite pacing to be nice to Discogs
-    await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, 700)); // polite pacing
   }
 
   return all;
+}
 
 /* ===== Filters: build options + labels ===== */
-}
-
-function populateFilters(data){
-  // Build unique, sorted values per field
-  const labels = uniq(data.map(x => x.labels));
-  const fmts   = uniq(data.map(x => x.formats));
-  const decs   = uniq(data.map(x => x.decade));
-  const gens   = uniq(data.flatMap(x => (x.genres || '').split(',').map(s => s.trim()).filter(Boolean)));
-  const stys   = uniq(data.flatMap(x => (x.styles || '').split(',').map(s => s.trim()).filter(Boolean)));
-
-  // Write options into each <select>
-  fill(document.getElementById('label'),  labels);
-  fill(document.getElementById('format'), fmts);
-  fill(document.getElementById('decade'), decs);
-  fill(document.getElementById('genre'),  gens);
-  fill(document.getElementById('style'),  stys);
-}
 function fill(sel, values) {
-  // Clear and insert a simple field-name placeholder (no "Any" prefix)
   sel.innerHTML = "";
   const fieldName = sel.id && sel.id.length
     ? sel.id.charAt(0).toUpperCase() + sel.id.slice(1)
@@ -280,8 +228,23 @@ function fill(sel, values) {
     o.textContent = v;
     sel.appendChild(o);
   }
-/* ===== end filters ===== */  
-  
+}
+
+function populateFilters(data){
+  const labels = uniq(data.map(x => x.labels));
+  const fmts   = uniq(data.map(x => x.formats));
+  const decs   = uniq(data.map(x => x.decade));
+  const gens   = uniq(data.flatMap(x => (x.genres || '').split(',').map(s => s.trim()).filter(Boolean)));
+  const stys   = uniq(data.flatMap(x => (x.styles || '').split(',').map(s => s.trim()).filter(Boolean)));
+
+  fill(document.getElementById('label'),  labels);
+  fill(document.getElementById('format'), fmts);
+  fill(document.getElementById('decade'), decs);
+  fill(document.getElementById('genre'),  gens);
+  fill(document.getElementById('style'),  stys);
+}
+/* ===== end filters ===== */
+
 let DATA=[], SHOWN=[];
 function applyFilters(){
   const q = norm($('q').value);
@@ -349,6 +312,7 @@ if (cached && cached.length){
   $('status').textContent = 'Loaded cached collection. Hit Sync to refresh from Discogs.';
 }
 </script>
+
 <script>
 // === Column Resizing ===
 document.addEventListener("DOMContentLoaded", () => {
@@ -386,6 +350,6 @@ document.addEventListener("DOMContentLoaded", () => {
     resizer.addEventListener("mousedown", onMouseDown);
   });
 });
-</script>  
+</script>
 </body>
 </html>
